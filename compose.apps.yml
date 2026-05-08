@@ -1,0 +1,325 @@
+version: "3.9"
+name: commerce-apps
+
+networks:
+  commerce-network:
+    external: true
+
+services:
+  auth-service:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    container_name: auth-service
+    env_file: .env
+    environment:
+      ConnectionStrings__DefaultConnection: "Host=${POSTGRES_AUTH_HOST};Port=5432;Database=${POSTGRES_AUTH_DB};Username=${POSTGRES_AUTH_USER};Password=${POSTGRES_AUTH_PASSWORD}"
+      Jwt__Secret: ${JWT_SECRET}
+      Jwt__ExpiresIn: ${JWT_EXPIRES_IN}
+      Jwt__RefreshExpiresIn: ${JWT_REFRESH_EXPIRES_IN}
+      Otlp__Endpoint: http://otel-collector:4317
+      ASPNETCORE_URLS: http://+:8080
+    ports:
+      - "${AUTH_SERVICE_PORT}:8080"
+    depends_on:
+      postgres-auth:
+        condition: service_healthy
+    networks:
+      - commerce-network
+    healthcheck:
+      test: curl -fs http://localhost:8080/health || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  order-service:
+    build:
+      context: ./services/order-service
+      dockerfile: Dockerfile
+    container_name: order-service
+    env_file: .env
+    environment:
+      ConnectionStrings__DefaultConnection: "Server=${MSSQL_ORDER_HOST},1433;Database=${MSSQL_ORDER_DB};User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True"
+      Kafka__BootstrapServers: kafka:9093
+      Otlp__Endpoint: http://otel-collector:4317
+      ASPNETCORE_URLS: http://+:8080
+    ports:
+      - "${ORDER_SERVICE_PORT}:8080"
+    depends_on:
+      mssql-order:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    networks:
+      - commerce-network
+    healthcheck:
+      test: curl -fs http://localhost:8080/health || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  notification-service:
+    build:
+      context: ./services/notification-service
+      dockerfile: Dockerfile
+    container_name: notification-service
+    env_file: .env
+    environment:
+      MongoDB__ConnectionString: "mongodb://${MONGO_NOTIFICATION_USER}:${MONGO_NOTIFICATION_PASSWORD}@${MONGO_NOTIFICATION_HOST}:27017"
+      MongoDB__DatabaseName: ${MONGO_NOTIFICATION_DB}
+      Kafka__BootstrapServers: kafka:9093
+      RabbitMQ__Host: ${RABBITMQ_HOST}
+      RabbitMQ__User: ${RABBITMQ_USER}
+      RabbitMQ__Password: ${RABBITMQ_PASSWORD}
+      Otlp__Endpoint: http://otel-collector:4317
+      ASPNETCORE_URLS: http://+:8080
+    ports:
+      - "${NOTIFICATION_SERVICE_PORT}:8080"
+    depends_on:
+      mongo-notification:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - commerce-network
+    healthcheck:
+      test: curl -fs http://localhost:8080/health || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  audit-service:
+    build:
+      context: ./services/audit-service
+      dockerfile: Dockerfile
+    container_name: audit-service
+    env_file: .env
+    environment:
+      ConnectionStrings__DefaultConnection: "Host=${POSTGRES_AUTH_HOST};Port=5432;Database=auditdb;Username=${POSTGRES_AUTH_USER};Password=${POSTGRES_AUTH_PASSWORD}"
+      Elasticsearch__Uri: http://elasticsearch:9200
+      Kafka__BootstrapServers: kafka:9093
+      Otlp__Endpoint: http://otel-collector:4317
+      ASPNETCORE_URLS: http://+:8080
+    ports:
+      - "${AUDIT_SERVICE_PORT}:8080"
+    depends_on:
+      postgres-auth:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    networks:
+      - commerce-network
+    healthcheck:
+      test: curl -fs http://localhost:8080/health || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  analytics-service:
+    build:
+      context: ./services/analytics-service
+      dockerfile: Dockerfile
+    container_name: analytics-service
+    env_file: .env
+    environment:
+      ConnectionStrings__DefaultConnection: "Host=${POSTGRES_ANALYTICS_HOST};Port=5432;Database=${POSTGRES_ANALYTICS_DB};Username=${POSTGRES_ANALYTICS_USER};Password=${POSTGRES_ANALYTICS_PASSWORD}"
+      Kafka__BootstrapServers: kafka:9093
+      Otlp__Endpoint: http://otel-collector:4317
+      ASPNETCORE_URLS: http://+:8080
+    ports:
+      - "${ANALYTICS_SERVICE_PORT}:8080"
+    depends_on:
+      postgres-analytics:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    networks:
+      - commerce-network
+    healthcheck:
+      test: curl -fs http://localhost:8080/health || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  search-indexer-service:
+    build:
+      context: ./services/search-indexer-service
+      dockerfile: Dockerfile
+    container_name: search-indexer-service
+    env_file: .env
+    environment:
+      Elasticsearch__Uri: http://elasticsearch:9200
+      Kafka__BootstrapServers: kafka:9093
+      Otlp__Endpoint: http://otel-collector:4317
+      ASPNETCORE_URLS: http://+:8080
+    ports:
+      - "${SEARCH_INDEXER_PORT}:8080"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    networks:
+      - commerce-network
+    healthcheck:
+      test: curl -fs http://localhost:8080/health || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  product-service:
+    build:
+      context: ./services/product-service
+      dockerfile: Dockerfile
+    container_name: product-service
+    env_file: .env
+    environment:
+      APP_ENV: production
+      MONGO_PRODUCT_HOST: ${MONGO_PRODUCT_HOST}
+      MONGO_PRODUCT_PORT: 27017
+      MONGO_PRODUCT_DB: ${MONGO_PRODUCT_DB}
+      MONGO_PRODUCT_USER: ${MONGO_PRODUCT_USER}
+      MONGO_PRODUCT_PASSWORD: ${MONGO_PRODUCT_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      KAFKA_BROKERS: kafka:9093
+    ports:
+      - "${PRODUCT_SERVICE_PORT}:8080"
+    depends_on:
+      mongo-product:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    networks:
+      - commerce-network
+    healthcheck:
+      test: curl -fs http://localhost:8080/api/health || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  payment-service:
+    build:
+      context: ./services/payment-service
+      dockerfile: Dockerfile
+    container_name: payment-service
+    env_file: .env
+    environment:
+      APP_ENV: production
+      DB_HOST: ${POSTGRES_PAYMENT_HOST}
+      DB_PORT: 5432
+      DB_DATABASE: ${POSTGRES_PAYMENT_DB}
+      DB_USERNAME: ${POSTGRES_PAYMENT_USER}
+      DB_PASSWORD: ${POSTGRES_PAYMENT_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      KAFKA_BROKERS: kafka:9093
+    ports:
+      - "${PAYMENT_SERVICE_PORT}:8080"
+    depends_on:
+      postgres-payment:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    networks:
+      - commerce-network
+    healthcheck:
+      test: curl -fs http://localhost:8080/api/health || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  inventory-service:
+    build:
+      context: ./services/inventory-service
+      dockerfile: Dockerfile
+    container_name: inventory-service
+    env_file: .env
+    environment:
+      APP_ENV: production
+      MONGO_INVENTORY_HOST: ${MONGO_INVENTORY_HOST}
+      MONGO_INVENTORY_PORT: 27017
+      MONGO_INVENTORY_DB: ${MONGO_INVENTORY_DB}
+      MONGO_INVENTORY_USER: ${MONGO_INVENTORY_USER}
+      MONGO_INVENTORY_PASSWORD: ${MONGO_INVENTORY_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      KAFKA_BROKERS: kafka:9093
+    ports:
+      - "${INVENTORY_SERVICE_PORT}:8080"
+    depends_on:
+      mongo-inventory:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    networks:
+      - commerce-network
+    healthcheck:
+      test: curl -fs http://localhost:8080/api/health || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  shop-web:
+    build:
+      context: ./frontend/shop-web
+      dockerfile: Dockerfile
+    container_name: shop-web
+    env_file: .env
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:${AUTH_SERVICE_PORT}
+      NEXT_PUBLIC_PRODUCT_API_URL: http://localhost:${PRODUCT_SERVICE_PORT}
+      NEXT_PUBLIC_ORDER_API_URL: http://localhost:${ORDER_SERVICE_PORT}
+    ports:
+      - "${SHOP_WEB_PORT}:3000"
+    networks:
+      - commerce-network
+    restart: unless-stopped
+
+  landing-web:
+    build:
+      context: ./frontend/landing-web
+      dockerfile: Dockerfile
+    container_name: landing-web
+    env_file: .env
+    ports:
+      - "${LANDING_WEB_PORT}:3000"
+    networks:
+      - commerce-network
+    restart: unless-stopped
+
+  admin-portal:
+    build:
+      context: ./frontend/admin-portal
+      dockerfile: Dockerfile
+    container_name: admin-portal
+    env_file: .env
+    environment:
+      API_URL: http://localhost:${AUTH_SERVICE_PORT}
+    ports:
+      - "${ADMIN_PORTAL_PORT}:80"
+    networks:
+      - commerce-network
+    restart: unless-stopped
+
+  operations-panel:
+    build:
+      context: ./frontend/operations-panel
+      dockerfile: Dockerfile
+    container_name: operations-panel
+    env_file: .env
+    ports:
+      - "${OPERATIONS_PANEL_PORT}:80"
+    networks:
+      - commerce-network
+    restart: unless-stopped

@@ -1,0 +1,108 @@
+version: "3.9"
+name: commerce-observability
+
+# NOTE: Kibana depends on Elasticsearch which runs in compose.base.yml.
+# Start infra first: docker compose -f compose.base.yml up -d
+# Then start observability: docker compose -f compose.observability.yml up -d
+
+networks:
+  commerce-network:
+    external: true
+
+volumes:
+  prometheus-data:
+  grafana-data:
+  loki-data:
+  tempo-data:
+
+services:
+  prometheus:
+    image: prom/prometheus:v2.51.2
+    container_name: prometheus
+    env_file: .env
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=30d"
+      - "--web.enable-lifecycle"
+    ports:
+      - "${PROMETHEUS_PORT}:9090"
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - commerce-network
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:10.4.2
+    container_name: grafana
+    env_file: .env
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+      GF_SECURITY_ADMIN_USER: admin
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    ports:
+      - "${GRAFANA_PORT}:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+    networks:
+      - commerce-network
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:2.9.7
+    container_name: loki
+    env_file: .env
+    command: -config.file=/etc/loki/loki-config.yml
+    ports:
+      - "${LOKI_PORT}:3100"
+    volumes:
+      - ./observability/loki/loki-config.yml:/etc/loki/loki-config.yml:ro
+      - loki-data:/loki
+    networks:
+      - commerce-network
+    restart: unless-stopped
+
+  tempo:
+    image: grafana/tempo:2.4.1
+    container_name: tempo
+    env_file: .env
+    command: -config.file=/etc/tempo/tempo-config.yml
+    ports:
+      - "${TEMPO_PORT}:4317"
+      - "3200:3200"
+    volumes:
+      - ./observability/tempo/tempo-config.yml:/etc/tempo/tempo-config.yml:ro
+      - tempo-data:/tmp/tempo
+    networks:
+      - commerce-network
+    restart: unless-stopped
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.99.0
+    container_name: otel-collector
+    env_file: .env
+    command: ["--config=/etc/otel-collector/otel-collector.yml"]
+    ports:
+      - "${OTEL_COLLECTOR_GRPC_PORT}:4317"
+      - "${OTEL_COLLECTOR_HTTP_PORT}:4318"
+    volumes:
+      - ./observability/otel-collector/otel-collector.yml:/etc/otel-collector/otel-collector.yml:ro
+    networks:
+      - commerce-network
+    restart: unless-stopped
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.13.4
+    container_name: kibana
+    env_file: .env
+    environment:
+      ELASTICSEARCH_HOSTS: '["http://elasticsearch:9200"]'
+      XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY: ${KIBANA_ENCRYPTION_KEY}
+    ports:
+      - "${KIBANA_PORT}:5601"
+    networks:
+      - commerce-network
+    restart: unless-stopped

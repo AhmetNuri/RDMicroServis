@@ -1,0 +1,278 @@
+version: "3.9"
+name: commerce-infra
+
+networks:
+  commerce-network:
+    driver: bridge
+
+volumes:
+  postgres-auth-data:
+  postgres-analytics-data:
+  postgres-payment-data:
+  mssql-order-data:
+  mongo-notification-data:
+  mongo-product-data:
+  mongo-inventory-data:
+  elasticsearch-data:
+  redis-data:
+  zookeeper-data:
+  kafka-data:
+  rabbitmq-data:
+
+services:
+  postgres-auth:
+    image: postgres:16-alpine
+    container_name: postgres-auth
+    env_file: .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_AUTH_DB}
+      POSTGRES_USER: ${POSTGRES_AUTH_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_AUTH_PASSWORD}
+    ports:
+      - "${POSTGRES_AUTH_PORT}:5432"
+    volumes:
+      - postgres-auth-data:/var/lib/postgresql/data
+    networks:
+      - commerce-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_AUTH_USER} -d ${POSTGRES_AUTH_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  postgres-analytics:
+    image: postgres:16-alpine
+    container_name: postgres-analytics
+    env_file: .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_ANALYTICS_DB}
+      POSTGRES_USER: ${POSTGRES_ANALYTICS_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_ANALYTICS_PASSWORD}
+    ports:
+      - "${POSTGRES_ANALYTICS_PORT}:5432"
+    volumes:
+      - postgres-analytics-data:/var/lib/postgresql/data
+    networks:
+      - commerce-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_ANALYTICS_USER} -d ${POSTGRES_ANALYTICS_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  postgres-payment:
+    image: postgres:16-alpine
+    container_name: postgres-payment
+    env_file: .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_PAYMENT_DB}
+      POSTGRES_USER: ${POSTGRES_PAYMENT_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PAYMENT_PASSWORD}
+    ports:
+      - "${POSTGRES_PAYMENT_PORT}:5432"
+    volumes:
+      - postgres-payment-data:/var/lib/postgresql/data
+    networks:
+      - commerce-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_PAYMENT_USER} -d ${POSTGRES_PAYMENT_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  mssql-order:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: mssql-order
+    env_file: .env
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: ${MSSQL_SA_PASSWORD}
+      MSSQL_PID: Developer
+    ports:
+      - "${MSSQL_ORDER_PORT}:1433"
+    volumes:
+      - mssql-order-data:/var/opt/mssql
+    networks:
+      - commerce-network
+    healthcheck:
+      test: /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "${MSSQL_SA_PASSWORD}" -Q "SELECT 1" -No
+      interval: 15s
+      timeout: 10s
+      retries: 10
+    restart: unless-stopped
+
+  mongo-notification:
+    image: mongo:7
+    container_name: mongo-notification
+    env_file: .env
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_NOTIFICATION_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_NOTIFICATION_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_NOTIFICATION_DB}
+    ports:
+      - "${MONGO_NOTIFICATION_PORT}:27017"
+    volumes:
+      - mongo-notification-data:/data/db
+    networks:
+      - commerce-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  mongo-product:
+    image: mongo:7
+    container_name: mongo-product
+    env_file: .env
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_PRODUCT_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PRODUCT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_PRODUCT_DB}
+    ports:
+      - "${MONGO_PRODUCT_PORT}:27017"
+    volumes:
+      - mongo-product-data:/data/db
+    networks:
+      - commerce-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  mongo-inventory:
+    image: mongo:7
+    container_name: mongo-inventory
+    env_file: .env
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INVENTORY_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INVENTORY_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_INVENTORY_DB}
+    ports:
+      - "${MONGO_INVENTORY_PORT}:27017"
+    volumes:
+      - mongo-inventory-data:/data/db
+    networks:
+      - commerce-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+    container_name: elasticsearch
+    env_file: .env
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "${ELASTICSEARCH_PORT}:9200"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    networks:
+      - commerce-network
+    healthcheck:
+      test: curl -fs http://localhost:9200/_cluster/health || exit 1
+      interval: 15s
+      timeout: 10s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    env_file: .env
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    ports:
+      - "${REDIS_PORT}:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - commerce-network
+    healthcheck:
+      test: redis-cli -a ${REDIS_PASSWORD} ping
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.7.0
+    container_name: zookeeper
+    env_file: .env
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "${ZOOKEEPER_PORT}:2181"
+    volumes:
+      - zookeeper-data:/var/lib/zookeeper
+    networks:
+      - commerce-network
+    healthcheck:
+      test: nc -z localhost 2181 || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  kafka:
+    image: confluentinc/cp-kafka:7.7.0
+    container_name: kafka
+    env_file: .env
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:9093,EXTERNAL://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9093,EXTERNAL://localhost:${KAFKA_EXTERNAL_PORT}
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_LOG_RETENTION_HOURS: 168
+    ports:
+      - "${KAFKA_EXTERNAL_PORT}:9092"
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    networks:
+      - commerce-network
+    healthcheck:
+      test: kafka-topics --bootstrap-server localhost:9092 --list || exit 1
+      interval: 15s
+      timeout: 10s
+      retries: 10
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: rabbitmq
+    env_file: .env
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    ports:
+      - "${RABBITMQ_PORT}:5672"
+      - "${RABBITMQ_MANAGEMENT_PORT}:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - commerce-network
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
