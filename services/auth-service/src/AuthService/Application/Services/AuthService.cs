@@ -58,9 +58,9 @@ public class AuthService : IAuthService
         var accessToken = _tokenService.GenerateAccessToken(user, roles);
         var refreshToken = await CreateRefreshTokenAsync(user.Id);
 
-        _logger.LogInformation("User registered: {Email}", user.Email);
+        _logger.LogInformation("User registered: {Email}", SanitizeForLog(user.Email));
 
-        return BuildAuthResponse(user, roles, accessToken, refreshToken.Token);
+        return BuildAuthResponse(user, roles, accessToken, refreshToken.Token, int.Parse(_configuration["Jwt:ExpiresIn"] ?? "3600"));
     }
 
     public async Task<AuthResponse> LoginAsync(LoginRequest request)
@@ -85,7 +85,7 @@ public class AuthService : IAuthService
             {
                 user.Status = UserStatus.Locked;
                 user.LockoutEnd = DateTime.UtcNow.AddMinutes(LockoutMinutes);
-                _logger.LogWarning("Account locked: {Email}", user.Email);
+                _logger.LogWarning("Account locked: {Email}", SanitizeForLog(user.Email));
             }
             await _userRepository.UpdateAsync(user);
             throw new UnauthorizedAccessException("Invalid credentials.");
@@ -99,8 +99,8 @@ public class AuthService : IAuthService
         var accessToken = _tokenService.GenerateAccessToken(user, roles);
         var refreshToken = await CreateRefreshTokenAsync(user.Id);
 
-        _logger.LogInformation("User logged in: {Email}", user.Email);
-        return BuildAuthResponse(user, roles, accessToken, refreshToken.Token);
+        _logger.LogInformation("User logged in: {Email}", SanitizeForLog(user.Email));
+        return BuildAuthResponse(user, roles, accessToken, refreshToken.Token, int.Parse(_configuration["Jwt:ExpiresIn"] ?? "3600"));
     }
 
     public async Task<AuthResponse> RefreshTokenAsync(string refreshToken)
@@ -123,7 +123,7 @@ public class AuthService : IAuthService
 
         await _dbContext.SaveChangesAsync();
 
-        return BuildAuthResponse(user, roles, accessToken, newRefreshToken.Token);
+        return BuildAuthResponse(user, roles, accessToken, newRefreshToken.Token, int.Parse(_configuration["Jwt:ExpiresIn"] ?? "3600"));
     }
 
     public async Task RevokeTokenAsync(string refreshToken)
@@ -167,13 +167,13 @@ public class AuthService : IAuthService
         return token;
     }
 
-    private static AuthResponse BuildAuthResponse(User user, IList<string> roles, string accessToken, string refreshToken)
+    private static AuthResponse BuildAuthResponse(User user, IList<string> roles, string accessToken, string refreshToken, int expiresIn)
     {
         return new AuthResponse
         {
             AccessToken = accessToken,
             RefreshToken = refreshToken,
-            ExpiresIn = 3600,
+            ExpiresIn = expiresIn,
             User = new UserDto
             {
                 Id = user.Id,
@@ -185,4 +185,7 @@ public class AuthService : IAuthService
             }
         };
     }
+
+    private static string SanitizeForLog(string value) =>
+        value.Replace("\r", string.Empty).Replace("\n", string.Empty);
 }

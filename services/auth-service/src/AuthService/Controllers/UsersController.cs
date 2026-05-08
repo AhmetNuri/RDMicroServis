@@ -55,7 +55,7 @@ public class UsersController : ControllerBase
         }
 
         await _dbContext.SaveChangesAsync();
-        _logger.LogInformation("Roles updated for user {UserId}: {Roles}", id, string.Join(", ", request.RoleNames));
+        _logger.LogInformation("Roles updated for user {UserId}: {Roles}", id, string.Join(", ", request.RoleNames.Select(r => r.Replace("\r", string.Empty).Replace("\n", string.Empty))));
         return Ok(new { message = "Roles updated" });
     }
 }
