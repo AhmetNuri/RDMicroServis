@@ -71,8 +71,8 @@ services:
     env_file: .env
     command: -config.file=/etc/tempo/tempo-config.yml
     ports:
-      - "${TEMPO_PORT}:4317"
-      - "3200:3200"
+      - "${TEMPO_PORT}:3200"
+      - "${TEMPO_GRPC_PORT}:4317"
     volumes:
       - ./observability/tempo/tempo-config.yml:/etc/tempo/tempo-config.yml:ro
       - tempo-data:/tmp/tempo

@@ -8,6 +8,7 @@ networks:
 volumes:
   postgres-auth-data:
   postgres-analytics-data:
+  postgres-audit-data:
   postgres-payment-data:
   mssql-order-data:
   mongo-notification-data:
@@ -57,6 +58,27 @@ services:
       - commerce-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_ANALYTICS_USER} -d ${POSTGRES_ANALYTICS_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  postgres-audit:
+    image: postgres:16-alpine
+    container_name: postgres-audit
+    env_file: .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_AUDIT_DB}
+      POSTGRES_USER: ${POSTGRES_AUDIT_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_AUDIT_PASSWORD}
+    ports:
+      - "${POSTGRES_AUDIT_PORT}:5432"
+    volumes:
+      - postgres-audit-data:/var/lib/postgresql/data
+    networks:
+      - commerce-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_AUDIT_USER} -d ${POSTGRES_AUDIT_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
