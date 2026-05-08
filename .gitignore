@@ -1,0 +1,24 @@
+# .NET
+**/bin/
+**/obj/
+
+# Laravel / PHP
+**/vendor/
+**/.env
+!**/.env.example
+
+# Node / Next.js / Angular
+**/node_modules/
+**/.next/
+**/dist/
+**/.angular/
+
+# IDE
+.idea/
+.vscode/
+*.suo
+*.user
+
+# OS
+.DS_Store
+Thumbs.db
