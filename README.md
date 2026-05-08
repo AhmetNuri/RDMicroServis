@@ -24,14 +24,14 @@ A production-grade, distributed e-commerce platform built with a polyglot micros
 │                                                                               │
 │  ┌────────────┐  ┌────────────┐  ┌──────────────────┐  ┌──────────────┐   │
 │  │auth-service│  │order-service│  │notification-svc  │  │audit-service │   │
-│  │  (.NET 8)  │  │  (.NET 8)  │  │    (.NET 8)       │  │  (.NET 8)    │   │
+│  │  (.NET 9)  │  │  (.NET 9)  │  │    (.NET 9)       │  │  (.NET 9)    │   │
 │  │  :8001     │  │  :8002     │  │    :8003          │  │  :8004       │   │
 │  └─────┬──────┘  └─────┬──────┘  └────────┬─────────┘  └──────┬───────┘   │
 │        │               │                   │                    │            │
 │  ┌─────┴──────┐  ┌─────┴──────┐  ┌────────┴─────────┐  ┌──────┴───────┐   │
 │  │analytics-  │  │search-     │  │product-service   │  │payment-svc   │   │
 │  │service     │  │indexer-svc │  │  (Node.js/TS)    │  │  (Laravel)   │   │
-│  │(.NET 8)    │  │(.NET 8)    │  │  :8007           │  │  :8008       │   │
+│  │(.NET 9)    │  │(.NET 9)    │  │  :8007           │  │  :8008       │   │
 │  │:8005       │  │:8006       │  └────────┬─────────┘  └──────┬───────┘   │
 │  └─────┬──────┘  └─────┬──────┘           │                    │            │
 │        │               │           ┌──────┴───────┐            │            │
@@ -91,7 +91,7 @@ A production-grade, distributed e-commerce platform built with a polyglot micros
 
 | Layer            | Technology                              | Version   |
 |------------------|-----------------------------------------|-----------|
-| Backend API      | ASP.NET Core (auth, order, notification, audit, analytics, search-indexer) | .NET 8 |
+| Backend API      | ASP.NET Core (auth, order, notification, audit, analytics, search-indexer) | .NET 9 |
 | Backend API      | Node.js / TypeScript (product, inventory) | Node 20 LTS |
 | Backend API      | Laravel (payment)                       | Laravel 11 / PHP 8.3 |
 | Frontend         | Next.js (shop-web, landing-web)         | Next.js 14 |
@@ -119,12 +119,12 @@ A production-grade, distributed e-commerce platform built with a polyglot micros
 
 | Service               | Tech         | Host Port | Container Port | Database              |
 |-----------------------|--------------|-----------|----------------|-----------------------|
-| auth-service          | .NET 8       | 8001      | 8080           | PostgreSQL (authdb)   |
-| order-service         | .NET 8       | 8002      | 8080           | MSSQL (orderdb)       |
-| notification-service  | .NET 8       | 8003      | 8080           | MongoDB (notificationdb) |
-| audit-service         | .NET 8       | 8004      | 8080           | PostgreSQL + Elasticsearch |
-| analytics-service     | .NET 8       | 8005      | 8080           | PostgreSQL (analyticsdb) |
-| search-indexer-service| .NET 8       | 8006      | 8080           | Elasticsearch         |
+| auth-service          | .NET 9       | 8001      | 8080           | PostgreSQL (authdb)   |
+| order-service         | .NET 9       | 8002      | 8080           | MSSQL (orderdb)       |
+| notification-service  | .NET 9       | 8003      | 8080           | MongoDB (notificationdb) |
+| audit-service         | .NET 9       | 8004      | 8080           | PostgreSQL + Elasticsearch |
+| analytics-service     | .NET 9       | 8005      | 8080           | PostgreSQL (analyticsdb) |
+| search-indexer-service| .NET 9       | 8006      | 8080           | Elasticsearch         |
 | product-service       | Node.js/TS   | 8007      | 8080           | MongoDB (productdb)   |
 | payment-service       | Laravel/PHP  | 8008      | 8080           | PostgreSQL (paymentdb)|
 | inventory-service     | Node.js/TS   | 8009      | 8080           | MongoDB (inventorydb) |
@@ -247,12 +247,12 @@ RDMicroServis/
 ├── .gitignore
 │
 ├── services/
-│   ├── auth-service/             # .NET 8 — JWT auth, user management
-│   ├── order-service/            # .NET 8 — Order lifecycle, MSSQL
-│   ├── notification-service/     # .NET 8 — Email/push via Kafka + RabbitMQ
-│   ├── audit-service/            # .NET 8 — Audit log → Elasticsearch
-│   ├── analytics-service/        # .NET 8 — Events → PostgreSQL analytics
-│   ├── search-indexer-service/   # .NET 8 — Kafka consumer → Elasticsearch
+│   ├── auth-service/             # .NET 9 — JWT auth, user management
+│   ├── order-service/            # .NET 9 — Order lifecycle, MSSQL
+│   ├── notification-service/     # .NET 9 — Email/push via Kafka + RabbitMQ
+│   ├── audit-service/            # .NET 9 — Audit log → Elasticsearch
+│   ├── analytics-service/        # .NET 9 — Events → PostgreSQL analytics
+│   ├── search-indexer-service/   # .NET 9 — Kafka consumer → Elasticsearch
 │   ├── product-service/          # Node.js/TS — Product catalog, MongoDB
 │   ├── payment-service/          # Laravel/PHP — Payment processing, PostgreSQL
 │   └── inventory-service/        # Node.js/TS — Stock management, MongoDB
